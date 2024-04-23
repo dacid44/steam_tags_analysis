@@ -16,6 +16,7 @@ load_dotenv()
 
 class APIs:
     steam_api_key = os.environ['STEAM_API_KEY']
+    discord_url = os.environ["DISCORD_WEBHOOK_URL"]
     def __init__(self) -> None:
         pass
 
@@ -37,7 +38,7 @@ class APIs:
             for appid in appids:
                 response = self.fetch_game(appid)
                 response.raise_for_status()
-                time.sleep(t - time.perf_counter())
+                time.sleep(max(t - time.perf_counter(), 0))
                 t = time.perf_counter() + rate
                 yield (appid, response)
         except HTTPError as e:
