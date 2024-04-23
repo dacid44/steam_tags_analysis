@@ -13,7 +13,7 @@ apis = APIs()
 
 DISCORD_URL = apis.discord_url
 DISCORD_MESSAGE = "### Fetching games with index {}-{} ({} games). Currently fetching game {}/{} {}{}"
-DISCORD_ERROR = "\n:warning: Error on appid {}:\n```json\n{}\n```"
+DISCORD_ERROR = "\n:warning: Error on appid {}:\n```python\n{}\n```"
 
 start = int(sys.argv[1])
 end = int(sys.argv[2])
