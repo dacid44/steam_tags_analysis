@@ -12,8 +12,8 @@ from apis import APIs
 apis = APIs()
 
 DISCORD_URL = apis.discord_url
-DISCORD_MESSAGE = "### Fetching games with index {}-{} ({} games). Currently fetching game {}/{}{}"
-DISCORD_ERROR = "\nError on appid {}:\n```json\n{}\n```"
+DISCORD_MESSAGE = "### Fetching games with index {}-{} ({} games). Currently fetching game {}/{} {}{}"
+DISCORD_ERROR = "\n:warning: Error on appid {}:\n```json\n{}\n```"
 
 start = int(sys.argv[1])
 end = int(sys.argv[2])
@@ -36,7 +36,7 @@ message_id = None
 
 executor = ThreadPoolExecutor(max_workers=1)
 
-def send_discord_message(edit, index):
+def send_discord_message(edit, index, complete):
     global message_id
     try:
         discord_request = {
@@ -46,6 +46,7 @@ def send_discord_message(edit, index):
                 num_games,
                 index,
                 num_games,
+                ":white_check_mark:" if complete else ":repeat:",
                 ''.join(DISCORD_ERROR.format(appid, error) for appid, error in errors.items()),
             ),
         }
@@ -67,11 +68,11 @@ def check_response(index, appid, response):
     else:
         errors[int(appid)] = response_json[str(appid)]
         success = False
-    if index % 2 == 0:
-        executor.submit(send_discord_message, True, index)
+    if index % 2 == 1 or index == num_games - 1:
+        executor.submit(send_discord_message, True, index + 1, index == num_games - 1)
     return success
 
-send_discord_message(False, 0)
+send_discord_message(False, 0, False)
 
 print(f"Fetching games with index {start}-{end} ({num_games} games)")
 data = {
