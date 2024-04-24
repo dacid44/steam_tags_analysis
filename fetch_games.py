@@ -12,8 +12,12 @@ from apis import APIs
 apis = APIs()
 
 DISCORD_URL = apis.discord_url
-DISCORD_MESSAGE = "### Fetching games with index {}-{} ({} games). Currently fetching game {}/{} {}{}"
-DISCORD_ERROR = "\n:warning: Error on appid {}:\n```python\n{}\n```"
+DISCORD_MESSAGE = (
+    "### Fetching games with index {}-{} ({} games). Currently fetching game {}/{} {}{}{}"
+)
+DISCORD_WARNING = "\n:warning: Error on appid {}:\n```python\n{}\n```"
+DISCORD_ERROR = "\n:stop_sign: Error in script: {}"
+
 
 start = int(sys.argv[1])
 end = int(sys.argv[2])
@@ -28,7 +32,7 @@ else:
     print("Filename should end in .gz or .json")
     sys.exit(1)
 
-appids = pd.read_csv("top10000games.csv", index_col=0)["appid"].tolist()[start:end]
+appids = pd.read_csv("allsteamspygames.csv", index_col=0)["appid"].tolist()[start:end]
 num_games = len(appids)
 
 errors = {}
@@ -36,7 +40,8 @@ message_id = None
 
 executor = ThreadPoolExecutor(max_workers=1)
 
-def send_discord_message(edit, index, complete):
+
+def send_discord_message(edit, index, complete, error_line=""):
     global message_id
     try:
         discord_request = {
@@ -47,7 +52,11 @@ def send_discord_message(edit, index, complete):
                 index,
                 num_games,
                 ":white_check_mark:" if complete else ":repeat:",
-                ''.join(DISCORD_ERROR.format(appid, error) for appid, error in errors.items()),
+                "".join(
+                    DISCORD_WARNING.format(appid, error)
+                    for appid, error in errors.items()
+                ),
+                error_line
             ),
         }
         if edit:
@@ -56,10 +65,13 @@ def send_discord_message(edit, index, complete):
                 json=discord_request,
             )
         else:
-            response = requests.post(DISCORD_URL, params={ "wait": True }, json=discord_request)
+            response = requests.post(
+                DISCORD_URL, params={"wait": True}, json=discord_request
+            )
             message_id = int(response.json()["id"])
     except Exception as e:
         print("Error sending discord webhook request:", e)
+
 
 def check_response(index, appid, response):
     response_json = response.json()
@@ -72,14 +84,24 @@ def check_response(index, appid, response):
         executor.submit(send_discord_message, True, index + 1, index == num_games - 1)
     return success
 
+
 send_discord_message(False, 0, False)
 
 print(f"Fetching games with index {start}-{end} ({num_games} games)")
-data = {
-    int(appid): response.json()[str(appid)]["data"]
-    for i, (appid, response) in tqdm(enumerate(apis.fetch_games_ratelimited(appids, rate)), total=num_games)
-    if check_response(i, appid, response)
-}
+
+data = {}
+index = None
+try:
+    for i, (appid, response) in tqdm(
+        enumerate(apis.fetch_games_ratelimited(appids, rate)), total=num_games
+    ):
+        index = i
+        if check_response(i, appid, response):
+            data[int(appid)] = response.json()[str(appid)]["data"]
+except Exception as e:
+    print(f"Error in script: {e}")
+    send_discord_message(True, index, True, error_line=DISCORD_ERROR.format(e))
+
 print(f"Successfully fetched {len(data)} of {num_games} games")
 
 if use_gzip:

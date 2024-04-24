@@ -34,15 +34,12 @@ class APIs:
     
     def fetch_games_ratelimited(self, appids: [int], rate: float) -> [(int, requests.Response)]:
         t = time.perf_counter() + rate
-        try:
-            for appid in appids:
-                response = self.fetch_game(appid)
-                response.raise_for_status()
-                time.sleep(max(t - time.perf_counter(), 0))
-                t = time.perf_counter() + rate
-                yield (appid, response)
-        except HTTPError as e:
-            pass
+        for appid in appids:
+            response = self.fetch_game(appid)
+            response.raise_for_status()
+            time.sleep(max(t - time.perf_counter(), 0))
+            t = time.perf_counter() + rate
+            yield (appid, response)
     
     async def fetch_games_async(self, appids: [int]):
         games = {}
@@ -65,7 +62,7 @@ class APIs:
 
         response = requests.get(STEAMSPY_API_URL, params)
         response.raise_for_status()
-        return response
+        # return response
         apps = { int(appid): data for appid, data in response.json().items() }
         for appid in apps:
             owner_range = [int(num.replace(",", "").strip()) for num in apps[appid]["owners"].split("..")]
