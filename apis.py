@@ -52,7 +52,6 @@ class APIs:
 
     def steamspy_request(self, request: str, appid: int | None = None, page: int | None = None):
         params = {
-            "key": self.steam_api_key,
             "request": request,
         }
         if appid is not None:
@@ -62,12 +61,25 @@ class APIs:
 
         response = requests.get(STEAMSPY_API_URL, params)
         response.raise_for_status()
-        # return response
+        return response
         apps = { int(appid): data for appid, data in response.json().items() }
         for appid in apps:
             owner_range = [int(num.replace(",", "").strip()) for num in apps[appid]["owners"].split("..")]
             apps[appid]["owners"] = tuple(owner_range)
         return apps
+    
+    async def steamspy_async(self, appids: [int], progressbar=None):
+        if progressbar is None:
+            progressbar = lambda x: x
+        async with aiohttp.ClientSession() as session:
+            for appid in progressbar(appids):
+                params = {
+                    "request": "appdetails",
+                    "appid": appid
+                }
+                async with session.get(STEAMSPY_API_URL, params=params) as response:
+                    response.raise_for_status()
+                    yield (appid, await response.json())
     
     def compile_steamspy_all_pages(self, start: int, end: int) -> (pd.DataFrame, [int]):
         games = {}

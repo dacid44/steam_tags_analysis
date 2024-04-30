@@ -23,6 +23,11 @@ start = int(sys.argv[1])
 end = int(sys.argv[2])
 filename = sys.argv[3]
 rate = float(sys.argv[4]) if len(sys.argv) >= 5 else 1.55
+if len(sys.argv) >= 6:
+    with open(sys.argv[5], "rt") as f:
+        skip_appids = set(map(int, json.load(f)))
+else:
+    skip_appids = set()
 
 if filename.endswith(".gz"):
     use_gzip = True
@@ -32,8 +37,15 @@ else:
     print("Filename should end in .gz or .json")
     sys.exit(1)
 
-appids = pd.read_csv("allsteamspygames.csv", index_col=0)["appid"].tolist()[start:end]
+appids = [
+    appid
+    for appid in pd.read_csv("allsteamspygames.csv", index_col=0)["appid"].tolist()[start:end]
+    if int(appid) not in skip_appids
+]
 num_games = len(appids)
+if num_games == 0:
+    print("No games to fetch, exiting")
+    sys.exit(0)
 
 errors = {}
 message_id = None
